@@ -1,0 +1,11 @@
+building: [nan 'yes' 'apartments' 'commercial' 'retail' 'hotel' 'convent' 'church'
+ 'construction']
+
+highway: ['traffic_signals' 'crossing' nan 'elevator' 'bus_stop' 'stop'
+ 'street_lamp' 'secondary' 'residential' 'primary' 'service'
+ 'unclassified' 'pedestrian' 'footway' 'trunk' 'primary_link' 'steps']
+
+barrier: [nan 'gate' 'kerb' 'bollard' 'wall' 'fence' 'retaining_wall']
+
+natural: [nan 'tree' 'shrub' 'stone']
+
