@@ -1,5 +1,5 @@
 osm_places = {
-    "SoHo, New York, NY",
+    "SoHo, New York, NY", #-74.0087049 40.7138231 -73.9900354 40.733357
     "Piedmont, California, USA",
     "Emeryville, California, USA",
     "Tianhe, GuangZhou, China",
@@ -17,9 +17,13 @@ osm_places = {
     "Yellowstone National Park, United States"
 }
 
-default_place_name = "Yellowstone National Park, United States"
+default_type = "place_name"
+default_place_name = "SoHo, New York, NY"
+data_path = "./data/"
+from_file = ""#"maldives-latest.osm.bz2"
 default_edge_linewidth = 0.1
-default_figsize=(50, 50)
+default_figsize=50
+default_bbox = (-74.0087049,40.7138231,-73.9900354,40.733357) #None # west, south, east, north
 default_save = 'yes'
 
 tags = {

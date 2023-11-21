@@ -4,6 +4,22 @@ import re
 import osmnx as ox
 from config import osm_places
 import matplotlib.colors as mcolors
+import xml.etree.ElementTree as ET
+import math
+from geopy.distance import geodesic
+
+class OSMParser:
+    def __init__(self, file_path):
+        self.file_path = file_path
+
+    def parse_osm_file(self):
+        with open(self.file_path, "r", encoding='utf-8') as file:
+            data = file.read()
+            return data
+
+    def parse_osm_data(self, data):
+        root = ET.fromstring(data)
+        return root
 
 class Normalized():
     def __init__(self, minn, maxn):
@@ -60,7 +76,10 @@ def convert_height(height):
 
 def convert_geometry(geometry):
     pass
-    
+
+def nh2color(nh):
+    return (nh,nh,nh)
+
 # 调整颜色
 def adjust_color(color, amount):
     rgb = mcolors.hex2color(color)
@@ -74,3 +93,14 @@ def adjust_color(color, amount):
     rgb = mcolors.hsv_to_rgb(hsv)
     return mcolors.rgb2hex(rgb[0])
 
+def get_area(data):
+    x_min, y_min, x_max, y_max = data.total_bounds
+    return x_min,y_min,x_max,y_max
+
+def get_legend(bound,pic_size):
+    (west, south, east, north) = bound
+    p1 = (south, west)
+    p2 = (north, east)
+    distance = geodesic(p1, p2).miles
+    inch = math.sqrt(float(pic_size[0])**2 + float(pic_size[1])**2)
+    return distance, inch

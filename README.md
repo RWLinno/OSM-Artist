@@ -34,6 +34,14 @@ pip install -r requirements.txt
 
 ### Quick run
 
+##### Here Is The Example:
+
+```
+python main.py --type place_name --place_name “SoHo, New York, NY” --save yes --figsize=50
+```
+
+
+
 All you need to do is run our main.py file from the command line to quickly get the code working without any parameters!
 
 ```
@@ -85,6 +93,42 @@ We use **image overlays** to combine heights with geographic elements to be able
 
 
 
+### Other Method to run
+
+###### *update on 2023.11.21*
+
+Compared to the original online data acquisition through **place names**, we have added two new sets of data input methods, namely **offline dataset** input and acquisition of rectangular area inputs(Area Bounds).
+
+##### Input Data Offline
+
+```
+python main.py --type=file --place_name=West-Oakland --from_file=West-Oakland.osm.bz2 --save=yes --figsize=20 --edge_linewidth=1
+```
+
+You can download OSM data via [this link](https://download.geofabrik.de/), almost all of them support bz2 format, then you can see `West-Oakland.osm.bz2` in the data folder can be loaded and visualized by the above command.
+
+![image-20231121142721327](https://s2.loli.net/2023/11/21/Lm7VTcoQOaXZ8k2.png)
+
+##### Input Area Bounds
+
+```
+python main.py --type=bbox --save=yes --place_name=somewhere_in_Manhattan --figsize=20 --bbox -74.0087049 40.7138231 -73.9900354 40.733357
+```
+
+There's no exact place name for this area, so we'll name the output *somewhere*, which BTW, you'll be able to see in the output folder at a location determined by the `save` parameter
+
+![image-20231121141038352](https://s2.loli.net/2023/11/21/KUlhQR7qwMZVne2.png)
+
+
+
+##### Legend visible
+
+In the final image I show the physical distance (in miles) corresponding to each inch in the picture, this is done by calculating the furthest point in the area geometry, which may not be precise.
+
+
+
+![image-20231121152527816](https://s2.loli.net/2023/11/21/K6Su97m8orcWFqN.png)
+
 ### Some Problems
 
 - Many of the data formats in OSM are not harmonized, which leads to much more processing to be added to the project. Let's say the elements of height field are often missing, or has only a few values, or additional units like meters, feet, etc. that also need to be converted. Even some places such as Tianhe, Guangzhou will appear "A 区" in the height field :( 
@@ -95,7 +139,6 @@ We use **image overlays** to combine heights with geographic elements to be able
 
 ### To update
 
-- Write a method to input data offline
 - Process more unrecognized regions
 - Optimize the map coloring algorithm
 

@@ -1,37 +1,42 @@
 import os
 import osmnx as ox
 import utils
+import numpy as np
 import config
 import matplotlib.pyplot as plt
-from shapely.geometry import Polygon
+import geopandas as gpd
+from shapely.geometry import Polygon,MultiPolygon,Point
 from PIL import Image
 
 class map():
     def __init__(self,args):
         super().__init__()
-        self.place_name = args.place_name
-        self.graph = ox.graph_from_place(self.place_name, network_type=args.network_type)
-        self.gdf = ox.features_from_place(self.place_name, args.tags)
-        self.figsize = args.figsize
+        self.args = args
+        if args.type=='place_name':
+            print("from place name")
+            self.gdf = ox.features_from_place(args.place_name, tags=args.tags)
+        elif args.type == 'bbox':
+            print("from bounding box")
+            (west, south, east, north) = args.bbox
+            self.gdf = ox.features_from_bbox(north=north,south=south,east=east,west=west,tags=args.tags)
+        elif args.type =='file':
+            # 可以读bz2文件
+            print("from file")
+            path = args.data_path + args.from_file
+            self.gdf = ox.features_from_xml(path)
+            # 创建OSMParser对象并解析.osm文件
+            # parser = utils.OSMParser(self.data_path + self.from_file)
+            # data = parser.parse_osm_file()
+            # _, self.gdf = ox.graph_to_gdfs(ox.graph_from_xml(data))
+        else:
+            print('Error input type!!')
+            exit()
+        self.figsize = (args.figsize,args.figsize)
+        bound = utils.get_area(self.gdf['geometry'])
+        print(bound)
+        self.legend = utils.get_legend(bound, self.figsize)
         print("new map created")
-        
-    def print_graph(self):
-        print("图的节点数:", len(self.graph.nodes))
-        print("图的边数:", len(self.graph.edges))
-        ox.plot_graph(ox.project_graph(self.graph)) 
 
-    def print_all_info(self):
-        print("graph columns:",self.gdf.columns)
-        print(self.gdf.head())
-        print(self.gdf.info())
-        for col in self.gdf.columns:
-            try:
-                unique_values = self.gdf[col].apply(lambda x: tuple(x) if isinstance(x, list) else x).unique()
-                print(f'{col}: {unique_values}')
-            except Exception as e:
-                print(f'Error occurred for column {col}: {str(e)}')
-                continue
-    
     def color_mapping(self):
         print("color_mapping")
         for column in self.gdf.columns:
@@ -61,10 +66,7 @@ class map():
         self.color_mapping()
         print(self.gdf['color'].unique())
         #fig, ax = ox.plot.plot_footprints(self.gdf, color=self.gdf['color'], edge_color='black', bgcolor='white', edge_linewidth=0.5, alpha=None, bbox=None, save=True, show=True, close=False, filepath=None, dpi=600)
-        fig, ax = ox.plot.plot_footprints(self.gdf, figsize = self.figsize, color=self.gdf['color'], edge_color='black', bgcolor='white', edge_linewidth=0.1)
-    
-        # plt.title("Basic map")
-        plt.axis("off")
+        fig, ax = ox.plot.plot_footprints(self.gdf, figsize = self.figsize, color=self.gdf['color'], edge_color='black', bgcolor='white', edge_linewidth=self.args.edge_linewidth, show = False)
         return fig
 
     def check_data(self,x,name=None):
@@ -73,10 +75,8 @@ class map():
     
     def draw_height(self):
         print("draw_height")
-        # 绘制建筑物高度图
-        fig, ax = ox.plot_footprints(self.gdf, figsize = self.figsize, color='white',edge_color="black", bgcolor="white", edge_linewidth=0.1, show=False)
-        # 将高度转换为统一格式
-        # print("before:",self.gdf["height"].unique())
+        if 'height' not in self.gdf.columns:
+            self.gdf['height'] = 1e-6
         self.gdf["height"] = self.gdf["height"].apply(utils.convert_height)
         # 将高度归一化
         # print("after:",self.gdf["height"].unique())
@@ -84,29 +84,29 @@ class map():
         
         scaler = utils.Normalized(self.gdf['height'].min(),self.gdf['height'].max()) 
         self.gdf['nh'] = 1. - scaler.transform(self.gdf['height']) # 统一到 [0,1] 范围
-        #print("max:",self.gdf['nh'].max())
-        
-        #self.check_data(self.gdf['height'],"height")
-        #self.check_data(self.gdf['nh'],"nh")
-        #self.check_data(self.gdf['geometry'],"geometry")
-        
-        # 创建一个新的GeoDataFrame，只包含多边形几何对象
-        self.gdf_polygons = self.gdf[self.gdf["geometry"].apply(lambda geom: isinstance(geom, Polygon))]
+        self.gdf['nh2color'] = self.gdf['nh'].apply(utils.nh2color)
+        self.gdf_polygons = self.gdf[self.gdf["geometry"].apply(lambda geom: isinstance(geom, (Polygon, MultiPolygon)))]
         # 根据高度信息设置建筑物颜色（例如，高度越高，颜色越深）
+        try:
+            fig, ax = ox.plot_footprints(self.gdf, figsize = self.figsize, color=self.gdf['nh2color'], edge_color="black", bgcolor="white", edge_linewidth=self.args.edge_linewidth, show=False)
+        except Exception as e:
+                fig = plt.figure(figsize=self.figsize)
+                ax = fig.add_subplot(111)
+        ax.set_aspect('equal')
         for polygon, height in zip(self.gdf["geometry"], self.gdf["nh"]):
-            # print(height,end="")     
-            if polygon is None or height is None:
-                print("Find none!")
+            if polygon is None or height is None or not isinstance(polygon, (Polygon, MultiPolygon)):
                 continue
-            if isinstance(polygon, Polygon):
-                try:
-                #if len(polygon.exterior.coords) >= 3:
-                    ax.add_patch(plt.Polygon(list(polygon.exterior.coords), facecolor=(height,height,height), edgecolor="black"))
-                except Exception as e:
-                    print("find polygon error!")
-                    continue
-        # plt.title("Height map")
-        plt.axis("off")
+            try:
+                if isinstance(polygon, MultiPolygon):
+                    for p in polygon.geoms:
+                        patch = plt.Polygon(list(p.exterior.coords), facecolor=utils.nh2color(height), edgecolor="black")
+                        ax.add_patch(patch)
+                else:
+                    patch = plt.Polygon(list(polygon.exterior.coords), facecolor=utils.nh2color(height), edgecolor="black")
+                    ax.add_patch(patch)
+            except Exception as e:
+                print("find polygon error!")
+                continue
         return fig
 
     def multiply_tuple(self, tup, num):
@@ -152,17 +152,18 @@ class map():
                 # 将均值赋值给新图像的对应像素
                 blended_pixels[i, j] = (blended_r, blended_g, blended_b)
 
-        # 创建一个新的 Figure 对象，并将融合后的图像绘制上去
-        plt.close()
-        fig = plt.figure(figsize= self.figsize) # 没搞懂为什么缩水了
-        plt.imshow(blended_image)
+        fig, ax = plt.subplots(figsize=self.figsize)
+        ax.imshow(blended_image)
+
+        scale_ratio = self.legend[0] / self.legend[1]
+        legend_label = f"1 inch of pic = {scale_ratio} miles in distance"
+        fig.text(0.5, 0.1, legend_label, horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
         plt.axis('off')
-        plt.show()
         return fig
 
     def save_fig(self,fig,name,color='white',pre='',suf='.jpg'):
         if pre == '':
-            pre = self.place_name
+            pre = self.args.place_name
         
         # 创建目录
         output_dir = f'output/{pre}'
@@ -170,3 +171,23 @@ class map():
         
         # 保存图像
         fig.savefig(f'{output_dir}/{name}{suf}', facecolor=color)
+
+'''
+    def print_graph(self):
+        print("图的节点数:", len(self.gdf.nodes))
+        print("图的边数:", len(self.gdf.edges))
+        ox.plot_graph(ox.project_graph(self.gdf)) 
+
+    def print_all_info(self):
+        print("graph columns:",self.gdf.columns)
+        print(self.gdf.head())
+        print(self.gdf.info())
+        for col in self.gdf.columns:
+            try:
+                unique_values = self.gdf[col].apply(lambda x: tuple(x) if isinstance(x, list) else x).unique()
+                print(f'{col}: {unique_values}')
+            except Exception as e:
+                print(f'Error occurred for column {col}: {str(e)}')
+                continue
+    
+'''
